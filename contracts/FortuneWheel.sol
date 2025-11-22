@@ -6,24 +6,15 @@ import {ZamaEthereumConfig} from "@fhevm/solidity/config/ZamaConfig.sol";
 
 interface IWheelToken {
     function confidentialBalanceOf(address account) external view returns (euint64);
-    function gameTransfer(address from, address to, euint64 amount) external returns (euint64);
-    function setOperator(address operator, bool approved) external;
+    function isOperator(address holder, address spender) external view returns (bool);
+    function setOperator(address operator, uint48 until) external;
+    function transferFromPlain(address from, address to, uint64 amount) external returns (bool);
 }
 
 /**
  * @title FortuneWheel
  * @notice Fully private fortune wheel game using FHE
- * @dev All bets, outcomes, and winnings are encrypted - only players can see their own data
- *
- * Prize Segments (8 slots):
- * 0 = 0x (lose)      - ~25% probability
- * 1 = 1x (break even)- ~20% probability
- * 2 = 2x            - ~20% probability
- * 3 = 3x            - ~15% probability
- * 4 = 5x            - ~10% probability
- * 5 = 10x           - ~5% probability
- * 6 = 25x           - ~3% probability
- * 7 = 100x          - ~2% probability
+ * @dev Uses WheelToken with proper ACL handling
  */
 contract FortuneWheel is ZamaEthereumConfig {
     // Game token
@@ -52,28 +43,20 @@ contract FortuneWheel is ZamaEthereumConfig {
     ];
 
     // Weighted probability distribution (cumulative, out of 256 for euint8 range)
-    // Segment 0: 0-63   (64/256 = 25%)
-    // Segment 1: 64-114 (51/256 = 20%)
-    // Segment 2: 115-165 (51/256 = 20%)
-    // Segment 3: 166-204 (39/256 = 15%)
-    // Segment 4: 205-230 (26/256 = 10%)
-    // Segment 5: 231-243 (13/256 = 5%)
-    // Segment 6: 244-251 (8/256 = 3%)
-    // Segment 7: 252-255 (4/256 = 2%)
     uint8[8] public segmentThresholds = [64, 115, 166, 205, 231, 244, 252, 255];
 
     // Player spin data
     struct SpinData {
-        euint64 betAmount;      // Encrypted bet amount
-        euint8 segment;         // Encrypted winning segment (0-7)
-        euint64 winnings;       // Encrypted winnings
-        bool hasPendingSpin;    // Whether player has unclaimed spin
-        uint256 spinTimestamp;  // When the spin occurred
+        uint64 betAmount;      // Plaintext bet amount
+        euint8 segment;        // Encrypted segment (private until reveal)
+        uint8 revealedSegment; // Revealed segment (after decryption)
+        bool hasPendingSpin;
+        bool isRevealed;       // Whether segment has been revealed
+        uint256 spinTimestamp;
     }
 
     mapping(address => SpinData) private _playerSpins;
 
-    // Total spins counter
     uint256 public totalSpins;
 
     // Events
@@ -81,8 +64,14 @@ contract FortuneWheel is ZamaEthereumConfig {
     event SpinCompleted(address indexed player, uint256 spinId);
     event PrizeClaimed(address indexed player);
 
+    error OnlyOwner();
+    error PendingSpinExists();
+    error NoPendingSpin();
+    error ZeroAddress();
+    error InvalidSegment();
+
     modifier onlyOwner() {
-        require(msg.sender == owner, "FortuneWheel: caller is not owner");
+        if (msg.sender != owner) revert OnlyOwner();
         _;
     }
 
@@ -93,34 +82,18 @@ contract FortuneWheel is ZamaEthereumConfig {
     }
 
     /**
-     * @notice Spin the wheel with an encrypted bet
-     * @param encryptedBet Encrypted bet amount
-     * @param inputProof Proof for the encrypted input
+     * @notice Spin the wheel with a plaintext bet amount
+     * @dev Bet amount is public, but balances remain private in the token
      */
-    function spin(
-        externalEuint64 encryptedBet,
-        bytes calldata inputProof
-    ) external {
-        require(!_playerSpins[msg.sender].hasPendingSpin, "FortuneWheel: claim previous spin first");
-
-        // Validate and convert bet
-        euint64 betAmount = FHE.fromExternal(encryptedBet, inputProof);
+    function spin(uint64 betAmount) external {
+        if (_playerSpins[msg.sender].hasPendingSpin) revert PendingSpinExists();
 
         // Clamp bet to min/max range
-        euint64 minBetEnc = FHE.asEuint64(minBet);
-        euint64 maxBetEnc = FHE.asEuint64(maxBet);
+        if (betAmount < minBet) betAmount = minBet;
+        if (betAmount > maxBet) betAmount = maxBet;
 
-        // If bet < minBet, use minBet; if bet > maxBet, use maxBet
-        ebool belowMin = FHE.lt(betAmount, minBetEnc);
-        ebool aboveMax = FHE.gt(betAmount, maxBetEnc);
-        betAmount = FHE.select(belowMin, minBetEnc, betAmount);
-        betAmount = FHE.select(aboveMax, maxBetEnc, betAmount);
-
-        // Grant WheelToken contract access to the encrypted bet amount
-        FHE.allow(betAmount, address(wheelToken));
-
-        // Transfer bet from player to house
-        euint64 transferred = wheelToken.gameTransfer(msg.sender, houseWallet, betAmount);
+        // Transfer bet from player to house using plaintext transfer
+        wheelToken.transferFromPlain(msg.sender, houseWallet, betAmount);
 
         // Generate encrypted random number (0-255)
         euint8 randomValue = FHE.randEuint8();
@@ -128,27 +101,19 @@ contract FortuneWheel is ZamaEthereumConfig {
         // Determine segment based on weighted probability
         euint8 segment = _getSegment(randomValue);
 
-        // Calculate winnings
-        euint64 winnings = _calculateWinnings(transferred, segment);
-
-        // Store spin data
+        // Store spin data (bet is plaintext, segment is encrypted)
         _playerSpins[msg.sender] = SpinData({
-            betAmount: transferred,
+            betAmount: betAmount,
             segment: segment,
-            winnings: winnings,
+            revealedSegment: 0,
             hasPendingSpin: true,
+            isRevealed: false,
             spinTimestamp: block.timestamp
         });
 
-        // Set ACL permissions for player
-        FHE.allowThis(_playerSpins[msg.sender].betAmount);
-        FHE.allow(_playerSpins[msg.sender].betAmount, msg.sender);
-
-        FHE.allowThis(_playerSpins[msg.sender].segment);
-        FHE.allow(_playerSpins[msg.sender].segment, msg.sender);
-
-        FHE.allowThis(_playerSpins[msg.sender].winnings);
-        FHE.allow(_playerSpins[msg.sender].winnings, msg.sender);
+        // Set ACL permissions for player to decrypt their segment
+        FHE.allowThis(segment);
+        FHE.allow(segment, msg.sender);
 
         totalSpins++;
 
@@ -157,48 +122,67 @@ contract FortuneWheel is ZamaEthereumConfig {
     }
 
     /**
-     * @notice Claim winnings from a spin
+     * @notice Reveal the segment (called by player after decrypting off-chain)
+     * @dev Player decrypts segment client-side and submits the revealed value
+     */
+    function revealSegment(uint8 segment) external {
+        if (!_playerSpins[msg.sender].hasPendingSpin) revert NoPendingSpin();
+        if (_playerSpins[msg.sender].isRevealed) revert InvalidSegment();
+        if (segment >= 8) revert InvalidSegment();
+
+        _playerSpins[msg.sender].revealedSegment = segment;
+        _playerSpins[msg.sender].isRevealed = true;
+    }
+
+    /**
+     * @notice Claim winnings from a revealed spin
      */
     function claimPrize() external {
-        require(_playerSpins[msg.sender].hasPendingSpin, "FortuneWheel: no pending spin");
+        SpinData storage playerSpin = _playerSpins[msg.sender];
+        if (!playerSpin.hasPendingSpin) revert NoPendingSpin();
+        if (!playerSpin.isRevealed) revert NoPendingSpin(); // Must reveal first
 
-        euint64 winnings = _playerSpins[msg.sender].winnings;
-
-        // Check if winnings > 0
-        euint64 zero = FHE.asEuint64(0);
-        ebool hasWinnings = FHE.gt(winnings, zero);
+        // Calculate winnings from plaintext bet and revealed segment
+        uint64 multiplier = prizeMultipliers[playerSpin.revealedSegment];
+        uint64 winnings = uint64((uint256(playerSpin.betAmount) * multiplier) / 10000);
 
         // Transfer winnings from house to player (if any)
-        euint64 transferAmount = FHE.select(hasWinnings, winnings, zero);
-        wheelToken.gameTransfer(houseWallet, msg.sender, transferAmount);
+        if (winnings > 0) {
+            wheelToken.transferFromPlain(houseWallet, msg.sender, winnings);
+        }
 
         // Clear pending spin
-        _playerSpins[msg.sender].hasPendingSpin = false;
+        playerSpin.hasPendingSpin = false;
 
         emit PrizeClaimed(msg.sender);
     }
 
     /**
-     * @notice Get player's pending spin result (encrypted)
-     * @param player Player address
-     * @return segment Encrypted segment (0-7)
-     * @return winnings Encrypted winnings amount
-     * @return hasPending Whether there's a pending spin
+     * @notice Get player's pending spin data
      */
     function getSpinResult(address player) external view returns (
+        uint64 betAmount,
         euint8 segment,
-        euint64 winnings,
-        bool hasPending
+        bool hasPending,
+        bool isRevealed,
+        uint8 revealedSegment
     ) {
         SpinData storage data = _playerSpins[player];
-        return (data.segment, data.winnings, data.hasPendingSpin);
+        return (data.betAmount, data.segment, data.hasPendingSpin, data.isRevealed, data.revealedSegment);
     }
 
     /**
-     * @notice Get player's last bet amount (encrypted)
+     * @notice Get player's last bet amount
      */
-    function getLastBet(address player) external view returns (euint64) {
+    function getLastBet(address player) external view returns (uint64) {
         return _playerSpins[player].betAmount;
+    }
+
+    /**
+     * @notice Get the encrypted segment handle for off-chain decryption
+     */
+    function getSegmentHandle(address player) external view returns (euint8) {
+        return _playerSpins[player].segment;
     }
 
     /**
@@ -210,97 +194,40 @@ contract FortuneWheel is ZamaEthereumConfig {
 
     /**
      * @notice Determine segment from random value using weighted probability
-     * @param randomValue Random uint8 (0-255)
-     * @return segment The winning segment (0-7)
      */
     function _getSegment(euint8 randomValue) internal returns (euint8) {
-        // Start with segment 0
         euint8 segment = FHE.asEuint8(0);
 
-        // Check each threshold and update segment
-        // If random >= threshold[i], segment = i + 1
         for (uint8 i = 0; i < 7; i++) {
-            euint8 threshold = FHE.asEuint8(segmentThresholds[i]);
-            ebool aboveThreshold = FHE.ge(randomValue, threshold);
-            euint8 nextSegment = FHE.asEuint8(i + 1);
-            segment = FHE.select(aboveThreshold, nextSegment, segment);
+            ebool aboveThreshold = FHE.ge(randomValue, segmentThresholds[i]);
+            segment = FHE.select(aboveThreshold, FHE.asEuint8(i + 1), segment);
         }
 
-        FHE.allowThis(segment);
         return segment;
-    }
-
-    /**
-     * @notice Calculate winnings based on bet and segment
-     * @param bet The bet amount
-     * @param segment The winning segment
-     * @return winnings The calculated winnings
-     */
-    function _calculateWinnings(euint64 bet, euint8 segment) internal returns (euint64) {
-        // Start with 0 winnings
-        euint64 winnings = FHE.asEuint64(0);
-
-        // For each possible segment, calculate potential winnings
-        // and select if segment matches
-        for (uint8 i = 0; i < 8; i++) {
-            euint8 segmentValue = FHE.asEuint8(i);
-            ebool isThisSegment = FHE.eq(segment, segmentValue);
-
-            // Calculate winnings for this segment: bet * multiplier / 10000
-            uint64 multiplier = prizeMultipliers[i];
-            euint64 potentialWinnings;
-
-            if (multiplier == 0) {
-                potentialWinnings = FHE.asEuint64(0);
-            } else {
-                // bet * multiplier / 10000
-                potentialWinnings = FHE.div(FHE.mul(bet, multiplier), 10000);
-            }
-
-            winnings = FHE.select(isThisSegment, potentialWinnings, winnings);
-        }
-
-        FHE.allowThis(winnings);
-        return winnings;
     }
 
     // Admin functions
 
-    /**
-     * @notice Set minimum bet amount
-     */
     function setMinBet(uint64 _minBet) external onlyOwner {
         minBet = _minBet;
     }
 
-    /**
-     * @notice Set maximum bet amount
-     */
     function setMaxBet(uint64 _maxBet) external onlyOwner {
         maxBet = _maxBet;
     }
 
-    /**
-     * @notice Update house wallet
-     */
     function setHouseWallet(address _houseWallet) external onlyOwner {
-        require(_houseWallet != address(0), "FortuneWheel: zero address");
+        if (_houseWallet == address(0)) revert ZeroAddress();
         houseWallet = _houseWallet;
     }
 
-    /**
-     * @notice Update prize multiplier for a segment
-     */
     function setPrizeMultiplier(uint8 segment, uint64 multiplier) external onlyOwner {
-        require(segment < 8, "FortuneWheel: invalid segment");
+        if (segment >= 8) revert InvalidSegment();
         prizeMultipliers[segment] = multiplier;
     }
 
-    /**
-     * @notice Transfer ownership
-     */
     function transferOwnership(address newOwner) external onlyOwner {
-        require(newOwner != address(0), "FortuneWheel: zero address");
+        if (newOwner == address(0)) revert ZeroAddress();
         owner = newOwner;
     }
 }

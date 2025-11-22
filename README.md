@@ -1,13 +1,22 @@
 # Fortune Wheel - Private Prize Game on Zama FHEVM
 
-A fully private fortune wheel game built on Zama Protocol. All bets, outcomes, and winnings are encrypted using Fully Homomorphic Encryption (FHE) - only you can see your own data.
+A fortune wheel game built on Zama Protocol using Fully Homomorphic Encryption (FHE). Token balances are encrypted and game outcomes are private until you reveal them.
 
 ## Deployed Contracts (Sepolia Testnet)
 
 | Contract | Address |
 |----------|---------|
-| WheelToken | `0xE4b08f47fC2d331a9B42b735c91Dfb6ED6dA9498` |
-| FortuneWheel | `0x10E4E9eA5224C3417E182f5C6bC0704a486Ac49E` |
+| WheelToken | `0x401D82f4Ffd850e355989359D8a7b6e858bC18ca` |
+| FortuneWheel | `0x480Ec1111e8A66EeF6a74122aF092AE56e582Ce3` |
+
+## Architecture
+
+**Hybrid Privacy Model:**
+- Token balances: **Encrypted** (private)
+- Random segment: **Encrypted** until reveal (private)
+- Bet amounts: **Plaintext** (public)
+
+This hybrid approach avoids cross-contract FHE ACL complexity while maintaining meaningful privacy.
 
 ## Quick Start
 
@@ -17,7 +26,7 @@ npm install
 cd frontend && npm install
 
 # Run frontend
-npm run dev
+cd frontend && npm run dev
 ```
 
 Open http://localhost:5173 and connect MetaMask (Sepolia network).
@@ -26,10 +35,32 @@ Open http://localhost:5173 and connect MetaMask (Sepolia network).
 
 1. **Connect Wallet** - Use MetaMask on Sepolia testnet
 2. **Buy Tokens** - Exchange Sepolia ETH for WHEEL tokens (0.001 ETH = 100,000 tokens)
-3. **Approve Game** - Allow the game contract to transfer tokens
-4. **Spin** - Place your bet and spin the wheel
-5. **Reveal Result** - Decrypt your encrypted result
-6. **Claim Prize** - Collect your winnings
+3. **Set Operator** - Allow the game contract to transfer tokens on your behalf
+4. **Spin** - Place your bet (plaintext amount) and spin the wheel
+5. **Reveal Result** - Decrypt your encrypted segment client-side and submit it
+6. **Claim Prize** - Collect your winnings based on revealed segment
+
+## Game Flow (Technical)
+
+```
+Player                          FortuneWheel                    WheelToken
+   |                                  |                              |
+   |-- spin(betAmount) -------------->|                              |
+   |                                  |-- transferFromPlain() ------>|
+   |                                  |<-- tokens transferred -------|
+   |                                  |                              |
+   |                                  |-- FHE.randEuint8() --------->|
+   |                                  |   (encrypted segment)        |
+   |<-- segment handle ---------------|                              |
+   |                                  |                              |
+   |   [decrypt segment off-chain]    |                              |
+   |                                  |                              |
+   |-- revealSegment(segment) ------->|                              |
+   |                                  |                              |
+   |-- claimPrize() ----------------->|                              |
+   |                                  |-- transferFromPlain() ------>|
+   |<-- winnings --------------------- |<-- tokens transferred ------|
+```
 
 ## Prize Segments
 
@@ -44,11 +75,58 @@ Open http://localhost:5173 and connect MetaMask (Sepolia network).
 | 6 | 25x | ~3% |
 | 7 | 100x | ~2% |
 
+## Contracts
+
+### WheelToken
+Confidential ERC20-like token with encrypted balances.
+
+Key functions:
+- `confidentialBalanceOf(address)` - Returns encrypted balance handle
+- `setOperator(address, uint48)` - Approve operator with expiration timestamp
+- `transferFromPlain(from, to, amount)` - Transfer with plaintext amount (for games)
+- `confidentialTransfer(to, amount, proof)` - Transfer with encrypted amount
+
+### FortuneWheel
+The game contract with encrypted random outcomes.
+
+Key functions:
+- `spin(uint64 betAmount)` - Place bet and spin (plaintext bet)
+- `revealSegment(uint8 segment)` - Submit decrypted segment
+- `claimPrize()` - Claim winnings after reveal
+- `getSegmentHandle(address)` - Get encrypted segment for decryption
+
+## Development
+
+```bash
+# Compile contracts
+npx hardhat compile
+
+# Deploy fresh contracts
+npx hardhat run scripts/deploy-test-fresh.ts --network ethersSepoliaTestnet
+
+# Run tests
+npx hardhat test
+```
+
+## Environment Variables
+
+Create `.env` file:
+```
+PRIVATE_KEY=your_wallet_private_key
+SEPOLIA_RPC_URL=https://ethereum-sepolia-rpc.publicnode.com
+```
+
 ## Tech Stack
 
 - **Smart Contracts**: Solidity 0.8.24, Zama FHEVM
 - **Frontend**: React 18, Vite, ethers.js
-- **Encryption**: @zama-fhe/relayer-sdk
+- **Encryption**: fhevmjs for client-side decryption
+
+## Key Learnings
+
+1. **FHE ACL Complexity**: Passing encrypted values between contracts requires careful ACL management
+2. **Hybrid Approach**: Using plaintext for cross-contract calls while keeping balances encrypted is a practical tradeoff
+3. **Reveal Pattern**: Encrypted results can be decrypted client-side and submitted back for verification
 
 ## License
 

@@ -203,21 +203,51 @@ export function useFortuneWheel(
     setSpinResult({ segment: null, winnings: null, betAmount: null, isDecrypted: false });
 
     try {
-      // Encrypt the bet amount
-      const encrypted = await encrypt64(fortuneWheelAddress, userAddress, betAmount);
+      // Normalize addresses to checksummed format
+      const normalizedContractAddress = ethers.getAddress(fortuneWheelAddress);
+      const normalizedUserAddress = ethers.getAddress(userAddress);
+
+      console.log("Spin parameters:", {
+        contractAddress: normalizedContractAddress,
+        userAddress: normalizedUserAddress,
+        betAmount: betAmount.toString(),
+      });
+
+      // Encrypt the bet amount with normalized addresses
+      const encrypted = await encrypt64(normalizedContractAddress, normalizedUserAddress, betAmount);
       if (!encrypted) {
         throw new Error("Failed to encrypt bet");
       }
 
+      console.log("Encrypted data:", {
+        handle: encrypted.handles[0],
+        proofLength: encrypted.inputProof.length,
+      });
+
       // Call spin function
       const tx = await fortuneWheelContract.spin(encrypted.handles[0], encrypted.inputProof);
+      console.log("Transaction submitted:", tx.hash);
+
       await tx.wait();
+      console.log("Transaction confirmed");
 
       setHasPendingSpin(true);
       await fetchBalance();
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Error spinning:", err);
-      setError(err instanceof Error ? err.message : "Failed to spin");
+      // Extract more detailed error info
+      let errorMessage = "Failed to spin";
+      if (err instanceof Error) {
+        errorMessage = err.message;
+        // Check for revert reason
+        if ('reason' in err) {
+          errorMessage = (err as { reason: string }).reason || errorMessage;
+        }
+        if ('data' in err) {
+          console.error("Error data:", (err as { data: unknown }).data);
+        }
+      }
+      setError(errorMessage);
     } finally {
       setIsSpinning(false);
     }

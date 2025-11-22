@@ -21,7 +21,7 @@ function App() {
     error: fhevmError,
     initialize: initializeFhevm,
     isInitialized,
-  } = useFhevm();
+  } = useFhevm(address); // Pass current address to detect account changes
 
   const {
     balance,
