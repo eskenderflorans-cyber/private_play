@@ -35,10 +35,9 @@ contract FortuneWheel is ZamaEthereumConfig {
     // House wallet (receives losing bets, pays winning bets)
     address public houseWallet;
 
-    // Minimum and maximum bet amounts (in token units with 18 decimals)
-    // Note: Using smaller values that fit in uint64 (max ~18.4e18)
-    uint64 public minBet = 1e15; // 0.001 token
-    uint64 public maxBet = 1e18; // 1 token (max safe for uint64)
+    // Minimum and maximum bet amounts (in token units with 6 decimals)
+    uint64 public minBet = 1e6; // 1 token
+    uint64 public maxBet = 10000e6; // 10,000 tokens
 
     // Prize multipliers for each segment (in basis points, 10000 = 1x)
     uint64[8] public prizeMultipliers = [
@@ -116,6 +115,9 @@ contract FortuneWheel is ZamaEthereumConfig {
         ebool aboveMax = FHE.gt(betAmount, maxBetEnc);
         betAmount = FHE.select(belowMin, minBetEnc, betAmount);
         betAmount = FHE.select(aboveMax, maxBetEnc, betAmount);
+
+        // Grant WheelToken contract access to the encrypted bet amount
+        FHE.allow(betAmount, address(wheelToken));
 
         // Transfer bet from player to house
         euint64 transferred = wheelToken.gameTransfer(msg.sender, houseWallet, betAmount);

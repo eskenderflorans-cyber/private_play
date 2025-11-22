@@ -5,7 +5,7 @@ import { useDecrypt } from "./useDecrypt";
 
 // Contract ABIs (simplified)
 const WHEEL_TOKEN_ABI = [
-  "function confidentialBalanceOf(address account) view returns (uint256)",
+  "function confidentialBalanceOf(address account) view returns (bytes32)",
   "function buyTokens() payable",
   "function setOperator(address operator, bool approved)",
   "function isOperator(address holder, address operator) view returns (bool)",
@@ -13,10 +13,10 @@ const WHEEL_TOKEN_ABI = [
 ];
 
 const FORTUNE_WHEEL_ABI = [
-  "function spin(uint256 encryptedBet, bytes inputProof)",
+  "function spin(bytes32 encryptedBet, bytes inputProof)",
   "function claimPrize()",
-  "function getSpinResult(address player) view returns (uint256 segment, uint256 winnings, bool hasPending)",
-  "function getLastBet(address player) view returns (uint256)",
+  "function getSpinResult(address player) view returns (bytes32 segment, bytes32 winnings, bool hasPending)",
+  "function getLastBet(address player) view returns (bytes32)",
   "function hasPendingSpin(address player) view returns (bool)",
   "function totalSpins() view returns (uint256)",
   "function minBet() view returns (uint64)",

@@ -6,8 +6,8 @@ A fully private fortune wheel game built on Zama Protocol. All bets, outcomes, a
 
 | Contract | Address |
 |----------|---------|
-| WheelToken | `0x7748BF440A3914EB44d21B8eDE90CcE9B56274bA` |
-| FortuneWheel | `0x6ec63C44412d7E7417fC68ADcA3c3b96B5a8D45D` |
+| WheelToken | `0xE4b08f47fC2d331a9B42b735c91Dfb6ED6dA9498` |
+| FortuneWheel | `0x10E4E9eA5224C3417E182f5C6bC0704a486Ac49E` |
 
 ## Quick Start
 
@@ -25,7 +25,7 @@ Open http://localhost:5173 and connect MetaMask (Sepolia network).
 ## How to Play
 
 1. **Connect Wallet** - Use MetaMask on Sepolia testnet
-2. **Buy Tokens** - Exchange Sepolia ETH for WHEEL tokens (0.001 ETH = 1 token)
+2. **Buy Tokens** - Exchange Sepolia ETH for WHEEL tokens (0.001 ETH = 100,000 tokens)
 3. **Approve Game** - Allow the game contract to transfer tokens
 4. **Spin** - Place your bet and spin the wheel
 5. **Reveal Result** - Decrypt your encrypted result

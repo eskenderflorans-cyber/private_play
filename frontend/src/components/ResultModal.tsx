@@ -28,7 +28,7 @@ export function ResultModal({
 
   const formatAmount = (amount: bigint | null) => {
     if (amount === null) return "???";
-    return ethers.formatUnits(amount, 18);
+    return ethers.formatUnits(amount, 6);
   };
 
   const isWin = winnings !== null && winnings > 0n;

@@ -30,7 +30,7 @@ export function BetPanel({
   const [buyAmount, setBuyAmount] = useState("0.01");
 
   const handleSpin = () => {
-    const amount = ethers.parseUnits(betAmount, 18);
+    const amount = ethers.parseUnits(betAmount, 6);
     onSpin(amount);
   };
 
@@ -40,7 +40,7 @@ export function BetPanel({
 
   const formatBalance = (bal: bigint | null) => {
     if (bal === null) return "Encrypted";
-    return ethers.formatUnits(bal, 18);
+    return ethers.formatUnits(bal, 6);
   };
 
   return (
@@ -85,7 +85,7 @@ export function BetPanel({
         >
           {isBuying ? "Buying..." : "Buy WHEEL Tokens"}
         </button>
-        <p style={styles.hint}>1 ETH = 1000 WHEEL tokens</p>
+        <p style={styles.hint}>0.001 ETH = 100,000 WHEEL tokens</p>
       </div>
 
       {/* Operator Approval */}

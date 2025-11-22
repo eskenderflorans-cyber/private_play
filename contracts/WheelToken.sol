@@ -12,7 +12,7 @@ import {ZamaEthereumConfig} from "@fhevm/solidity/config/ZamaConfig.sol";
 contract WheelToken is ZamaEthereumConfig {
     string public name = "Wheel Token";
     string public symbol = "WHEEL";
-    uint8 public decimals = 18;
+    uint8 public decimals = 6; // Using 6 decimals to allow larger token amounts
 
     // Owner of the contract (can mint tokens)
     address public owner;
@@ -66,15 +66,17 @@ contract WheelToken is ZamaEthereumConfig {
 
     /**
      * @notice Purchase tokens with ETH
+     * @dev Rate: 0.001 ETH = 100,000 WHEEL tokens
      */
     function buyTokens() external payable {
         require(msg.value >= tokenPrice, "WheelToken: insufficient ETH");
 
-        // Calculate token amount - simplified to avoid overflow
-        // 0.001 ETH = 1 token (1e18 smallest units)
-        uint256 tokensToMint = msg.value / tokenPrice;
-        require(tokensToMint <= type(uint64).max / 1e18, "WheelToken: amount too large");
-        uint64 tokenAmount = uint64(tokensToMint * 1e18);
+        // Calculate token amount
+        // 0.001 ETH = 100,000 tokens (with 6 decimals = 100,000 * 1e6 = 1e11 smallest units)
+        uint256 ethUnits = msg.value / tokenPrice;
+        uint256 tokensInSmallestUnit = ethUnits * 100000 * (10 ** decimals);
+        require(tokensInSmallestUnit <= type(uint64).max, "WheelToken: amount too large");
+        uint64 tokenAmount = uint64(tokensInSmallestUnit);
 
         euint64 encryptedAmount = FHE.asEuint64(tokenAmount);
 
