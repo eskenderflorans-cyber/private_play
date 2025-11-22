@@ -17,7 +17,6 @@ async function main() {
   // Deploy FortuneWheel
   console.log("\n2. Deploying FortuneWheel...");
   const FortuneWheel = await ethers.getContractFactory("FortuneWheel");
-  // Use deployer as house wallet for testing
   const fortuneWheel = await FortuneWheel.deploy(wheelTokenAddress, deployer.address);
   await fortuneWheel.waitForDeployment();
   const fortuneWheelAddress = await fortuneWheel.getAddress();
@@ -30,9 +29,9 @@ async function main() {
 
   // Mint initial tokens to house wallet for payouts
   console.log("\n4. Minting initial tokens to house wallet...");
-  const initialSupply = BigInt(1000000) * BigInt(10 ** 18); // 1M tokens
+  const initialSupply = BigInt(10) * BigInt(10 ** 18);
   await wheelToken.mintPlain(deployer.address, initialSupply);
-  console.log("Minted 1,000,000 WHEEL tokens to house wallet");
+  console.log("Minted 10 WHEEL tokens to house wallet");
 
   // Summary
   console.log("\n========================================");
@@ -42,8 +41,8 @@ async function main() {
   console.log("FortuneWheel:", fortuneWheelAddress);
   console.log("House Wallet:", deployer.address);
   console.log("\nUpdate your frontend .env with:");
-  console.log(`VITE_WHEEL_TOKEN_ADDRESS=${wheelTokenAddress}`);
-  console.log(`VITE_FORTUNE_WHEEL_ADDRESS=${fortuneWheelAddress}`);
+  console.log("VITE_WHEEL_TOKEN_ADDRESS=" + wheelTokenAddress);
+  console.log("VITE_FORTUNE_WHEEL_ADDRESS=" + fortuneWheelAddress);
 }
 
 main()
