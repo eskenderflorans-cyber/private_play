@@ -70,10 +70,13 @@ contract WheelToken is ZamaEthereumConfig {
     function buyTokens() external payable {
         require(msg.value >= tokenPrice, "WheelToken: insufficient ETH");
 
-        // Calculate token amount (1 token per tokenPrice wei)
-        uint256 tokenAmount = (msg.value / tokenPrice) * (10 ** decimals);
+        // Calculate token amount - simplified to avoid overflow
+        // 0.001 ETH = 1 token (1e18 smallest units)
+        uint256 tokensToMint = msg.value / tokenPrice;
+        require(tokensToMint <= type(uint64).max / 1e18, "WheelToken: amount too large");
+        uint64 tokenAmount = uint64(tokensToMint * 1e18);
 
-        euint64 encryptedAmount = FHE.asEuint64(uint64(tokenAmount));
+        euint64 encryptedAmount = FHE.asEuint64(tokenAmount);
 
         // Add to balance
         _balances[msg.sender] = FHE.add(_balances[msg.sender], encryptedAmount);

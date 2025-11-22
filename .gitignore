@@ -1,12 +1,5 @@
 # =========================
-# Project Specific
-# =========================
-.claude/
-claude_docs/
-*.md
-!README.md
 
-# =========================
 # Operating System Files
 # =========================
 
@@ -241,6 +234,13 @@ project.lock.json
 project.fragment.lock.json
 artifacts/
 .nuget/
+
+
+# Project Specific
+.claude/
+claude_docs/
+*.md
+!README.md
 
 # Swift / Xcode
 *.xcodeproj/*
