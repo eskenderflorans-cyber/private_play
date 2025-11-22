@@ -53,7 +53,7 @@ export function useFortuneWheel(
   signer: ethers.Signer | null,
   userAddress: string
 ) {
-  const { encrypt64, isEncrypting } = useEncrypt();
+  const { isEncrypting } = useEncrypt();
   const { decryptSingle, isDecrypting } = useDecrypt();
 
   const [wheelTokenContract, setWheelTokenContract] = useState<ethers.Contract | null>(null);

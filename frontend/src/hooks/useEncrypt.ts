@@ -48,11 +48,11 @@ export function useEncrypt() {
         pubKeyFirst20: pubKey.publicKey ? Array.from(pubKey.publicKey.slice(0, 20)).map(b => b.toString(16).padStart(2, '0')).join('') : 'N/A'
       } : "null");
 
-      // Check public params
-      const pp64 = instance.getPublicParams ? instance.getPublicParams(64) : null;
+      // Check public params (debug only)
+      const pp64 = instance.getPublicParams ? instance.getPublicParams(64 as never) : null;
       console.log("Public Params (64):", pp64 ? {
-        paramsId: pp64.publicParamsId,
-        paramsLength: pp64.publicParams?.length
+        paramsId: (pp64 as { publicParamsId?: string }).publicParamsId,
+        paramsLength: (pp64 as { publicParams?: Uint8Array }).publicParams?.length
       } : "null");
 
       const input = instance.createEncryptedInput(contractAddress, userAddress);
