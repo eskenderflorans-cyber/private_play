@@ -177,10 +177,16 @@ export function useFortuneWheel(
     setError(null);
 
     try {
+      const value = ethers.parseEther(ethAmount);
+      console.log("Buying tokens with ETH:", ethAmount, "wei:", value.toString());
+
       const tx = await wheelTokenContract.buyTokens({
-        value: ethers.parseEther(ethAmount),
+        value: value,
+        gasLimit: 500000n, // Explicit gas limit to avoid estimation issues
       });
+      console.log("Buy tx submitted:", tx.hash);
       await tx.wait();
+      console.log("Buy tx confirmed");
       await fetchBalance();
     } catch (err) {
       console.error("Error buying tokens:", err);
