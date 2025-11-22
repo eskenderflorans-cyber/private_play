@@ -1,0 +1,419 @@
+# =========================
+# Project Specific
+# =========================
+.claude/
+claude_docs/
+*.md
+!README.md
+
+# =========================
+# Operating System Files
+# =========================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# =========================
+# IDE and Editor Files
+# =========================
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# JetBrains (IntelliJ, PyCharm, WebStorm, etc.)
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*.swn
+*~
+.vim/
+tags
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# =========================
+# Programming Languages
+# =========================
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+*.manifest
+*.spec
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+cython_debug/
+.ruff_cache/
+
+# Virtual environments
+venv/
+ENV/
+env/
+.env/
+.venv/
+env.bak/
+venv.bak/
+pythonenv*/
+.conda/
+*.conda
+
+# JavaScript / Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn/
+.pnp.*
+*.tsbuildinfo
+.eslintcache
+.stylelintcache
+
+# TypeScript
+*.tsbuildinfo
+dist/
+
+# Java
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+hs_err_pid*
+replay_pid*
+target/
+
+# Kotlin
+*.kotlin_module
+
+# Scala
+*.class
+*.log
+target/
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.work
+vendor/
+
+# Rust
+target/
+Cargo.lock
+**/*.rs.bk
+
+# C / C++
+*.o
+*.obj
+*.so
+*.dll
+*.dylib
+*.exe
+*.out
+*.app
+*.a
+*.lib
+*.la
+*.lo
+*.ko
+*.elf
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Ruby
+*.gem
+*.rbc
+/.config
+/coverage/
+/InstalledFiles
+/pkg/
+/spec/reports/
+/spec/examples.txt
+/test/tmp/
+/test/version_tmp/
+/tmp/
+.rvmrc
+.ruby-version
+.ruby-gemset
+.bundle/
+vendor/bundle
+
+# PHP
+/vendor/
+composer.phar
+composer.lock
+
+# .NET / C#
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.nupkg
+*.snupkg
+project.lock.json
+project.fragment.lock.json
+artifacts/
+.nuget/
+
+# Swift / Xcode
+*.xcodeproj/*
+!*.xcodeproj/project.pbxproj
+!*.xcodeproj/xcshareddata/
+!*.xcworkspace/contents.xcworkspacedata
+/*.gcno
+**/xcshareddata/
+DerivedData/
+*.moved-aside
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+xcuserdata/
+*.xccheckout
+*.xcscmblueprint
+Pods/
+Carthage/Build/
+
+# =========================
+# Build and Package Tools
+# =========================
+
+# Build directories
+build/
+dist/
+out/
+target/
+bin/
+obj/
+
+# Package managers
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+Gemfile.lock
+poetry.lock
+Pipfile.lock
+
+# =========================
+# Environment and Secrets
+# =========================
+
+# Environment files
+.env
+.env.*
+!.env.example
+!.env.template
+*.local
+
+# Secret files
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+secrets/
+credentials.json
+service-account*.json
+
+# =========================
+# Logs and Databases
+# =========================
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Databases
+*.sql
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+
+# =========================
+# Testing and Coverage
+# =========================
+
+# Coverage
+coverage/
+*.lcov
+.nyc_output/
+htmlcov/
+
+# Test results
+test-results/
+test-output/
+junit.xml
+test-report.xml
+
+# =========================
+# Documentation Tools
+# =========================
+
+# Sphinx
+docs/_build/
+
+# MkDocs
+site/
+
+# =========================
+# Containers and VMs
+# =========================
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# Vagrant
+.vagrant/
+
+# =========================
+# Miscellaneous
+# =========================
+
+# Archives
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+*.bak
+*.backup
+*.old
+
+# Cache
+.cache/
+*.cache
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# Kubernetes
+*.kubeconfig
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/*
+
+# Data files (uncomment if needed)
+# *.csv
+# *.json
+# *.xml
+# data/
+
+# =========================
+# Hardhat / Solidity
+# =========================
+artifacts/
+cache/
+typechain/
+typechain-types/
