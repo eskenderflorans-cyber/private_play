@@ -7,16 +7,18 @@ import { useDecrypt } from "./useDecrypt";
 const WHEEL_TOKEN_ABI = [
   "function confidentialBalanceOf(address account) view returns (bytes32)",
   "function buyTokens() payable",
-  "function setOperator(address operator, bool approved)",
+  "function setOperator(address operator, uint48 until)",
   "function isOperator(address holder, address operator) view returns (bool)",
   "function tokenPrice() view returns (uint256)",
 ];
 
 const FORTUNE_WHEEL_ABI = [
-  "function spin(bytes32 encryptedBet, bytes inputProof)",
+  "function spin(uint64 betAmount)",
+  "function revealSegment(uint8 segment)",
   "function claimPrize()",
-  "function getSpinResult(address player) view returns (bytes32 segment, bytes32 winnings, bool hasPending)",
-  "function getLastBet(address player) view returns (bytes32)",
+  "function getSpinResult(address player) view returns (uint64 betAmount, bytes32 segment, bool hasPending, bool isRevealed, uint8 revealedSegment)",
+  "function getLastBet(address player) view returns (uint64)",
+  "function getSegmentHandle(address player) view returns (bytes32)",
   "function hasPendingSpin(address player) view returns (bool)",
   "function totalSpins() view returns (uint256)",
   "function minBet() view returns (uint64)",
@@ -156,7 +158,9 @@ export function useFortuneWheel(
     if (!wheelTokenContract || !fortuneWheelAddress) return;
 
     try {
-      const tx = await wheelTokenContract.setOperator(fortuneWheelAddress, true);
+      // Set expiration to 1 year from now (uint48 timestamp)
+      const oneYear = Math.floor(Date.now() / 1000) + (365 * 24 * 60 * 60);
+      const tx = await wheelTokenContract.setOperator(fortuneWheelAddress, oneYear);
       await tx.wait();
       setIsOperatorSet(true);
     } catch (err) {
@@ -203,29 +207,12 @@ export function useFortuneWheel(
     setSpinResult({ segment: null, winnings: null, betAmount: null, isDecrypted: false });
 
     try {
-      // Normalize addresses to checksummed format
-      const normalizedContractAddress = ethers.getAddress(fortuneWheelAddress);
-      const normalizedUserAddress = ethers.getAddress(userAddress);
-
       console.log("Spin parameters:", {
-        contractAddress: normalizedContractAddress,
-        userAddress: normalizedUserAddress,
         betAmount: betAmount.toString(),
       });
 
-      // Encrypt the bet amount with normalized addresses
-      const encrypted = await encrypt64(normalizedContractAddress, normalizedUserAddress, betAmount);
-      if (!encrypted) {
-        throw new Error("Failed to encrypt bet");
-      }
-
-      console.log("Encrypted data:", {
-        handle: encrypted.handles[0],
-        proofLength: encrypted.inputProof.length,
-      });
-
-      // Call spin function
-      const tx = await fortuneWheelContract.spin(encrypted.handles[0], encrypted.inputProof);
+      // Call spin function with plaintext bet amount (hybrid approach)
+      const tx = await fortuneWheelContract.spin(betAmount, { gasLimit: 2000000n });
       console.log("Transaction submitted:", tx.hash);
 
       await tx.wait();
@@ -251,22 +238,42 @@ export function useFortuneWheel(
     } finally {
       setIsSpinning(false);
     }
-  }, [fortuneWheelContract, userAddress, fortuneWheelAddress, isOperatorSet, encrypt64, fetchBalance]);
+  }, [fortuneWheelContract, userAddress, fortuneWheelAddress, isOperatorSet, fetchBalance]);
 
   // Fetch and decrypt spin result
   const fetchSpinResult = useCallback(async () => {
     if (!fortuneWheelContract || !userAddress || !signer || !fortuneWheelAddress) return;
 
     try {
-      const [segmentHandle, winningsHandle, pending] = await fortuneWheelContract.getSpinResult(userAddress);
-      const betHandle = await fortuneWheelContract.getLastBet(userAddress);
+      // New contract interface: (betAmount, segment, hasPending, isRevealed, revealedSegment)
+      const result = await fortuneWheelContract.getSpinResult(userAddress);
+      const betAmount = result[0]; // uint64 plaintext
+      const segmentHandle = result[1]; // euint8 encrypted
+      const pending = result[2]; // bool
+      const isRevealed = result[3]; // bool
+      const revealedSegment = result[4]; // uint8
 
       if (!pending) {
         setHasPendingSpin(false);
         return;
       }
 
-      // Decrypt segment (8-bit)
+      // If already revealed, use the revealed segment
+      if (isRevealed) {
+        const multiplier = PRIZE_SEGMENTS[Number(revealedSegment)]?.multiplier || 0;
+        // multiplier is 0, 1, 2, 3, 5, 10, 25, 100 - just multiply directly
+        const winnings = BigInt(betAmount) * BigInt(multiplier);
+
+        setSpinResult({
+          segment: Number(revealedSegment),
+          winnings: winnings,
+          betAmount: BigInt(betAmount),
+          isDecrypted: true,
+        });
+        return;
+      }
+
+      // Decrypt segment (8-bit) from encrypted handle
       const segmentDecrypted = await decryptSingle(
         segmentHandle.toString(),
         fortuneWheelAddress,
@@ -274,43 +281,52 @@ export function useFortuneWheel(
         userAddress
       );
 
-      // Decrypt winnings (64-bit)
-      const winningsDecrypted = await decryptSingle(
-        winningsHandle.toString(),
-        fortuneWheelAddress,
-        signer,
-        userAddress
-      );
+      if (segmentDecrypted !== null) {
+        const segment = Number(segmentDecrypted);
+        const multiplier = PRIZE_SEGMENTS[segment]?.multiplier || 0;
+        // multiplier is 0, 1, 2, 3, 5, 10, 25, 100 - just multiply directly
+        const winnings = BigInt(betAmount) * BigInt(multiplier);
 
-      // Decrypt bet amount
-      const betDecrypted = await decryptSingle(
-        betHandle.toString(),
-        fortuneWheelAddress,
-        signer,
-        userAddress
-      );
-
-      setSpinResult({
-        segment: segmentDecrypted !== null ? Number(segmentDecrypted) : null,
-        winnings: winningsDecrypted,
-        betAmount: betDecrypted,
-        isDecrypted: true,
-      });
+        setSpinResult({
+          segment: segment,
+          winnings: winnings,
+          betAmount: BigInt(betAmount),
+          isDecrypted: true,
+        });
+      }
     } catch (err) {
       console.error("Error fetching spin result:", err);
     }
   }, [fortuneWheelContract, userAddress, signer, fortuneWheelAddress, decryptSingle]);
 
-  // Claim prize
+  // Claim prize (first reveal segment, then claim)
   const claimPrize = useCallback(async () => {
-    if (!fortuneWheelContract) return;
+    if (!fortuneWheelContract || !spinResult.isDecrypted || spinResult.segment === null) {
+      setError("Please decrypt your result first");
+      return;
+    }
 
     setIsClaiming(true);
     setError(null);
 
     try {
-      const tx = await fortuneWheelContract.claimPrize();
-      await tx.wait();
+      // Check if already revealed
+      const result = await fortuneWheelContract.getSpinResult(userAddress);
+      const isRevealed = result[3];
+
+      // First reveal the segment if not already revealed
+      if (!isRevealed) {
+        console.log("Revealing segment:", spinResult.segment);
+        const revealTx = await fortuneWheelContract.revealSegment(spinResult.segment);
+        await revealTx.wait();
+        console.log("Segment revealed");
+      }
+
+      // Then claim the prize
+      console.log("Claiming prize...");
+      const claimTx = await fortuneWheelContract.claimPrize();
+      await claimTx.wait();
+      console.log("Prize claimed");
 
       setHasPendingSpin(false);
       setSpinResult({ segment: null, winnings: null, betAmount: null, isDecrypted: false });
@@ -321,7 +337,7 @@ export function useFortuneWheel(
     } finally {
       setIsClaiming(false);
     }
-  }, [fortuneWheelContract, fetchBalance]);
+  }, [fortuneWheelContract, fetchBalance, spinResult, userAddress]);
 
   return {
     // State

@@ -42,10 +42,13 @@ export function useDecrypt() {
         durationDays
       );
 
+      // Remove EIP712Domain from types (ethers v6 derives it from domain)
+      const { EIP712Domain, ...typesWithoutDomain } = eip712Message.types;
+
       // Sign the message
       const signature = await signer.signTypedData(
         eip712Message.domain,
-        eip712Message.types,
+        typesWithoutDomain,
         eip712Message.message
       );
 
