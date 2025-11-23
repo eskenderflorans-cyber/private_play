@@ -27,9 +27,7 @@ This hybrid approach avoids cross-contract FHE ACL complexity while maintaining 
 # Install dependencies
 npm install
 cd frontend && npm install
-
-# Run frontend
-cd frontend && npm run dev
+npm run dev
 ```
 
 Open http://localhost:5173 and connect MetaMask (Sepolia network).
@@ -120,17 +118,6 @@ SEPOLIA_RPC_URL=https://ethereum-sepolia-rpc.publicnode.com
 ```
 
 ## Tech Stack
-
-- **Smart Contracts**: Solidity 0.8.24, Zama FHEVM
+- **Smart Contracts**: Solidity 0.8.24, Zama FHEVM 0.9.1, relayer-sdk0.3.0-5, OpenZeppelin confidential-contracts 0.2.0
 - **Frontend**: React 18, Vite, ethers.js
 - **Encryption**: fhevmjs for client-side decryption
-
-## Key Learnings
-
-1. **FHE ACL Complexity**: Passing encrypted values between contracts requires careful ACL management
-2. **Hybrid Approach**: Using plaintext for cross-contract calls while keeping balances encrypted is a practical tradeoff
-3. **Reveal Pattern**: Encrypted results can be decrypted client-side and submitted back for verification
-
-## License
-
-MIT
