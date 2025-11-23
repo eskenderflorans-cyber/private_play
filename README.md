@@ -9,6 +9,9 @@ A fortune wheel game built on Zama Protocol using Fully Homomorphic Encryption (
 | WheelToken | `0x401D82f4Ffd850e355989359D8a7b6e858bC18ca` |
 | FortuneWheel | `0x480Ec1111e8A66EeF6a74122aF092AE56e582Ce3` |
 
+![Screenshot_2](https://github.com/user-attachments/assets/29848f43-256f-4c18-a51d-1d71cdea4098)
+
+
 ## Architecture
 
 **Hybrid Privacy Model:**
