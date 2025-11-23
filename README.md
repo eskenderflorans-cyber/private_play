@@ -14,12 +14,10 @@ A fortune wheel game built on Zama Protocol using Fully Homomorphic Encryption (
 
 ## Architecture
 
-**Hybrid Privacy Model:**
+**Privacy Model:**
 - Token balances: **Encrypted** (private)
 - Random segment: **Encrypted** until reveal (private)
 - Bet amounts: **Plaintext** (public)
-
-This hybrid approach avoids cross-contract FHE ACL complexity while maintaining meaningful privacy.
 
 ## Quick Start
 
@@ -118,6 +116,5 @@ SEPOLIA_RPC_URL=https://ethereum-sepolia-rpc.publicnode.com
 ```
 
 ## Tech Stack
-- **Smart Contracts**: Solidity 0.8.24, Zama FHEVM 0.9.1, relayer-sdk0.3.0-5, OpenZeppelin confidential-contracts 0.2.0
+- **Smart Contracts**: Solidity 0.8.24, Zama FHEVM 0.9.1, Relayer SDK 0.3.0-5, OpenZeppelin confidential-contracts 0.2.0
 - **Frontend**: React 18, Vite, ethers.js
-- **Encryption**: fhevmjs for client-side decryption
